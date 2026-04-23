@@ -524,13 +524,41 @@
                 for (let row = 0; row < this.gridSize; row++) {
                     this.grid[row] = [];
                     for (let col = 0; col < this.gridSize; col++) {
-                        const randomNum = Math.floor(Math.random() * 3) + 1;
-                        this.grid[row][col] = randomNum;
-                        if (randomNum > this.highestNumber) {
-                            this.highestNumber = randomNum;
+                        let num;
+                        let attempts = 0;
+                        do {
+                            num = Math.floor(Math.random() * 3) + 1;
+                            attempts++;
+                        } while (this.wouldCreateMatch(row, col, num) && attempts < 50);
+                        
+                        this.grid[row][col] = num;
+                        if (num > this.highestNumber) {
+                            this.highestNumber = num;
                         }
                     }
                 }
+            }
+
+            wouldCreateMatch(row, col, value) {
+                let horizontalCount = 1;
+                for (let c = col - 1; c >= 0; c--) {
+                    if (this.grid[row][c] === value) {
+                        horizontalCount++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                let verticalCount = 1;
+                for (let r = row - 1; r >= 0; r--) {
+                    if (this.grid[r][col] === value) {
+                        verticalCount++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                return horizontalCount >= 2 || verticalCount >= 2;
             }
 
             bindEvents() {
@@ -598,30 +626,61 @@
 
             findMatches() {
                 const matches = [];
-                const visited = new Set();
+                const allMatchedCells = new Set();
                 
                 for (let row = 0; row < this.gridSize; row++) {
-                    for (let col = 0; col < this.gridSize; col++) {
+                    let col = 0;
+                    while (col < this.gridSize) {
                         const value = this.grid[row][col];
-                        if (value === 0) continue;
+                        if (value === 0) {
+                            col++;
+                            continue;
+                        }
                         
-                        const horizontalMatch = this.findHorizontalMatch(row, col, value);
-                        if (horizontalMatch.length >= 3) {
-                            const key = `h-${row}-${col}`;
-                            if (!visited.has(key)) {
-                                matches.push({ cells: horizontalMatch, value });
-                                horizontalMatch.forEach(([r, c]) => visited.add(`h-${r}-${c}`));
+                        const match = [[row, col]];
+                        for (let c = col + 1; c < this.gridSize; c++) {
+                            if (this.grid[row][c] === value) {
+                                match.push([row, c]);
+                            } else {
+                                break;
                             }
                         }
                         
-                        const verticalMatch = this.findVerticalMatch(row, col, value);
-                        if (verticalMatch.length >= 3) {
-                            const key = `v-${row}-${col}`;
-                            if (!visited.has(key)) {
-                                matches.push({ cells: verticalMatch, value });
-                                verticalMatch.forEach(([r, c]) => visited.add(`v-${r}-${c}`));
+                        if (match.length >= 3) {
+                            matches.push({ cells: match, value, direction: 'horizontal' });
+                            match.forEach(([r, c]) => allMatchedCells.add(`${r},${c}`));
+                        }
+                        
+                        col += match.length;
+                    }
+                }
+                
+                for (let col = 0; col < this.gridSize; col++) {
+                    let row = 0;
+                    while (row < this.gridSize) {
+                        const value = this.grid[row][col];
+                        if (value === 0) {
+                            row++;
+                            continue;
+                        }
+                        
+                        const match = [[row, col]];
+                        for (let r = row + 1; r < this.gridSize; r++) {
+                            if (this.grid[r][col] === value) {
+                                match.push([r, col]);
+                            } else {
+                                break;
                             }
                         }
+                        
+                        if (match.length >= 3) {
+                            const hasOverlap = match.some(([r, c]) => allMatchedCells.has(`${r},${c}`));
+                            if (!hasOverlap) {
+                                matches.push({ cells: match, value, direction: 'vertical' });
+                            }
+                        }
+                        
+                        row += match.length;
                     }
                 }
                 
@@ -751,13 +810,13 @@
             checkGameOver() {
                 if (this.victory) return;
                 
-                let hasValidMove = false;
-                let canClickAnything = false;
-                
                 const existingMatches = this.findMatches();
                 if (existingMatches.length > 0) {
-                    hasValidMove = true;
+                    return;
                 }
+                
+                let canClickAnything = false;
+                let hasPotentialMatch = false;
                 
                 for (let row = 0; row < this.gridSize; row++) {
                     for (let col = 0; col < this.gridSize; col++) {
@@ -772,15 +831,15 @@
                             this.grid[row][col] -= 1;
                             
                             if (matches.length > 0) {
-                                hasValidMove = true;
+                                hasPotentialMatch = true;
                                 break;
                             }
                         }
                     }
-                    if (hasValidMove) break;
+                    if (hasPotentialMatch) break;
                 }
                 
-                if (!hasValidMove) {
+                if (!hasPotentialMatch) {
                     this.gameOver = true;
                     let message = '游戏结束！';
                     if (this.energy === 0) {
@@ -866,10 +925,10 @@
 
             getTileScale(value) {
                 if (value <= 5) return 1;
-                if (value <= 10) return 1.05;
-                if (value <= 15) return 1.1;
-                if (value <= 20) return 1.15;
-                return 1.2;
+                if (value <= 10) return 1.15;
+                if (value <= 15) return 1.3;
+                if (value <= 20) return 1.45;
+                return 1.6;
             }
 
             render() {
