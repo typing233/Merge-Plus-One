@@ -177,6 +177,7 @@
             border-radius: 10px;
             font-weight: bold;
             transition: all 0.3s ease;
+            transform-origin: center;
         }
 
         .tile.merge {
@@ -751,6 +752,12 @@
                 if (this.victory) return;
                 
                 let hasValidMove = false;
+                let canClickAnything = false;
+                
+                const existingMatches = this.findMatches();
+                if (existingMatches.length > 0) {
+                    hasValidMove = true;
+                }
                 
                 for (let row = 0; row < this.gridSize; row++) {
                     for (let col = 0; col < this.gridSize; col++) {
@@ -758,6 +765,8 @@
                         if (value === 0) continue;
                         
                         if (this.energy >= value) {
+                            canClickAnything = true;
+                            
                             this.grid[row][col] += 1;
                             const matches = this.findMatches();
                             this.grid[row][col] -= 1;
@@ -771,20 +780,23 @@
                     if (hasValidMove) break;
                 }
                 
-                const existingMatches = this.findMatches();
-                if (existingMatches.length > 0) {
-                    hasValidMove = true;
-                }
-                
-                if (!hasValidMove && this.energy === 0) {
+                if (!hasValidMove) {
                     this.gameOver = true;
-                    this.showGameOver();
+                    let message = '游戏结束！';
+                    if (this.energy === 0) {
+                        message = '能量耗尽，无法继续！';
+                    } else if (!canClickAnything) {
+                        message = '能量不足以进行任何操作！';
+                    } else {
+                        message = '没有可消除的组合，无法获得更多能量！';
+                    }
+                    this.showGameOver(message);
                 }
             }
 
-            showGameOver() {
+            showGameOver(message = '游戏结束！') {
                 document.getElementById('modal-title').textContent = '游戏结束';
-                document.getElementById('modal-message').textContent = '能量耗尽了！';
+                document.getElementById('modal-message').textContent = message;
                 document.getElementById('final-score').textContent = this.score;
                 document.getElementById('final-highest').textContent = this.highestNumber;
                 document.getElementById('game-over-modal').classList.add('show');
@@ -845,10 +857,19 @@
                 return { bg: `hsl(${(value * 17) % 360}, 70%, 50%)`, text: '#fff' };
             }
 
-            getTileSize(value) {
+            getTileFontSize(value) {
                 if (value <= 10) return '0.9rem';
-                if (value <= 15) return '0.8rem';
-                return '0.7rem';
+                if (value <= 15) return '0.85rem';
+                if (value <= 20) return '0.8rem';
+                return '0.75rem';
+            }
+
+            getTileScale(value) {
+                if (value <= 5) return 1;
+                if (value <= 10) return 1.05;
+                if (value <= 15) return 1.1;
+                if (value <= 20) return 1.15;
+                return 1.2;
             }
 
             render() {
@@ -866,11 +887,14 @@
                         if (value > 0) {
                             const tile = document.createElement('div');
                             const color = this.getTileColor(value);
+                            const scale = this.getTileScale(value);
                             tile.className = 'tile';
                             tile.style.background = color.bg;
                             tile.style.color = color.text;
-                            tile.style.fontSize = this.getTileSize(value);
-                            tile.style.boxShadow = `0 0 15px ${color.bg}40`;
+                            tile.style.fontSize = this.getTileFontSize(value);
+                            tile.style.boxShadow = `0 0 ${15 + value}px ${color.bg}60`;
+                            tile.style.transform = `scale(${scale})`;
+                            tile.style.zIndex = value;
                             tile.textContent = value;
                             cell.appendChild(tile);
                             
