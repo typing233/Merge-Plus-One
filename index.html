@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字消除 - Merge Plus One</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #fff;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 25px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .energy-bar {
+            flex: 1;
+            margin: 0 20px;
+        }
+
+        .energy-bar .stat-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .energy-track {
+            background: rgba(255, 255, 255, 0.2);
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #34d399);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .energy-fill.low {
+            background: linear-gradient(90deg, #ef4444, #f87171);
+        }
+
+        .combo-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: bold;
+            color: #fbbf24;
+            text-shadow: 0 0 30px rgba(251, 191, 36, 0.8);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 100;
+        }
+
+        .combo-display.show {
+            animation: comboPopup 0.8s ease-out;
+        }
+
+        @keyframes comboPopup {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            20% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1.5) translateY(-50px);
+            }
+        }
+
+        .game-board {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell:hover:not(.empty) {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .cell:active:not(.empty) {
+            transform: scale(0.95);
+        }
+
+        .cell.empty {
+            cursor: default;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tile {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .tile.merge {
+            animation: mergeAnim 0.5s ease;
+        }
+
+        .tile.eliminate {
+            animation: eliminateAnim 0.4s ease forwards;
+        }
+
+        @keyframes mergeAnim {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.3);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes eliminateAnim {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e1e3f, #2d2d5a);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal h2 {
+            color: #fff;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .modal p {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .modal .final-score {
+            color: #fbbf24;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .modal .btns {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .goal-display {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+        }
+
+        .goal-display p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.95rem;
+        }
+
+        .goal-display .high-number {
+            color: #fbbf24;
+            font-weight: bold;
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .instructions h3 {
+            color: #fff;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .instructions ul {
+            list-style: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        .score-popup {
+            position: absolute;
+            color: #fbbf24;
+            font-weight: bold;
+            font-size: 1.2rem;
+            pointer-events: none;
+            animation: scoreFloat 1s ease-out forwards;
+        }
+
+        @keyframes scoreFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-40px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>数字消除</h1>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-label">得分</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="energy-bar">
+                <div class="stat-label">
+                    <span>能量</span>
+                    <span id="energy-text">100/100</span>
+                </div>
+                <div class="energy-track">
+                    <div class="energy-fill" id="energy-fill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">最高数字</div>
+                <div class="stat-value" id="highest">1</div>
+            </div>
+        </div>
+
+        <div class="game-board">
+            <div class="grid" id="grid">
+            </div>
+            <div class="goal-display">
+                <p>目标：合成数字 <span class="high-number">20</span> 或更大！</p>
+                <p style="margin-top: 5px; font-size: 0.85rem;">当前最高：<span class="high-number" id="current-goal">1</span></p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="new-game-btn">新游戏</button>
+            <button class="btn btn-secondary" id="help-btn">帮助</button>
+        </div>
+
+        <div class="instructions">
+            <h3>游戏规则</h3>
+            <ul>
+                <li>• 点击数字方块使其数字 +1，消耗能量（数字越大消耗越多）</li>
+                <li>• 横向或纵向连续 3 个及以上相同数字会消除</li>
+                <li>• 消除的方块会合并成一个更大的数字，并回复能量</li>
+                <li>• 连续消除触发连击，获得额外分数</li>
+                <li>• 能量耗尽且无法消除时游戏结束</li>
+                <li>• 目标：合成数字 20 或更大！</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="combo-display" id="combo-display"></div>
+
+    <div class="modal" id="game-over-modal">
+        <div class="modal-content">
+            <h2 id="modal-title">游戏结束</h2>
+            <p id="modal-message">能量耗尽了！</p>
+            <div class="final-score" id="final-score">0</div>
+            <p>最高数字：<span id="final-highest">1</span></p>
+            <div class="btns">
+                <button class="btn btn-primary" id="restart-btn">再来一局</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="help-modal">
+        <div class="modal-content">
+            <h2>游戏帮助</h2>
+            <p style="margin-bottom: 15px; text-align: left;">
+                <strong>基本操作：</strong><br>
+                点击任意数字方块，数字会 +1
+            </p>
+            <p style="margin-bottom: 15px; text-align: left;">
+                <strong>能量消耗：</strong><br>
+                点击数字 n，消耗 n 点能量
+            </p>
+            <p style="margin-bottom: 15px; text-align: left;">
+                <strong>消除规则：</strong><br>
+                横向或纵向 3 个及以上相同数字会自动消除，合并成一个 n+1 的数字
+            </p>
+            <p style="margin-bottom: 15px; text-align: left;">
+                <strong>能量回复：</strong><br>
+                每次消除根据数字大小回复能量
+            </p>
+            <p style="margin-bottom: 15px; text-align: left;">
+                <strong>目标：</strong><br>
+                合成数字 20 或更大！数字越大，占据空间越大，挑战越难！
+            </p>
+            <div class="btns">
+                <button class="btn btn-primary" id="close-help-btn">我知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TILE_COLORS = {
+            1: { bg: '#6366f1', text: '#fff' },
+            2: { bg: '#8b5cf6', text: '#fff' },
+            3: { bg: '#a855f7', text: '#fff' },
+            4: { bg: '#d946ef', text: '#fff' },
+            5: { bg: '#ec4899', text: '#fff' },
+            6: { bg: '#f43f5e', text: '#fff' },
+            7: { bg: '#ef4444', text: '#fff' },
+            8: { bg: '#f97316', text: '#fff' },
+            9: { bg: '#f59e0b', text: '#fff' },
+            10: { bg: '#eab308', text: '#fff' },
+            11: { bg: '#84cc16', text: '#fff' },
+            12: { bg: '#22c55e', text: '#fff' },
+            13: { bg: '#10b981', text: '#fff' },
+            14: { bg: '#14b8a6', text: '#fff' },
+            15: { bg: '#06b6d4', text: '#fff' },
+            16: { bg: '#0ea5e9', text: '#fff' },
+            17: { bg: '#3b82f6', text: '#fff' },
+            18: { bg: '#6366f1', text: '#fff' },
+            19: { bg: '#8b5cf6', text: '#fff' },
+            20: { bg: '#a855f7', text: '#fff' },
+        };
+
+        class Game {
+            constructor() {
+                this.gridSize = 6;
+                this.grid = [];
+                this.score = 0;
+                this.energy = 100;
+                this.maxEnergy = 100;
+                this.highestNumber = 1;
+                this.combo = 0;
+                this.isProcessing = false;
+                this.gameOver = false;
+                this.victory = false;
+                
+                this.init();
+                this.bindEvents();
+            }
+
+            init() {
+                this.createGrid();
+                this.render();
+                this.updateStats();
+            }
+
+            createGrid() {
+                this.grid = [];
+                for (let row = 0; row < this.gridSize; row++) {
+                    this.grid[row] = [];
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const randomNum = Math.floor(Math.random() * 3) + 1;
+                        this.grid[row][col] = randomNum;
+                        if (randomNum > this.highestNumber) {
+                            this.highestNumber = randomNum;
+                        }
+                    }
+                }
+            }
+
+            bindEvents() {
+                document.getElementById('new-game-btn').addEventListener('click', () => this.restart());
+                document.getElementById('restart-btn').addEventListener('click', () => this.restart());
+                document.getElementById('help-btn').addEventListener('click', () => this.showHelp());
+                document.getElementById('close-help-btn').addEventListener('click', () => this.hideHelp());
+            }
+
+            handleClick(row, col) {
+                if (this.isProcessing || this.gameOver || this.grid[row][col] === 0) return;
+                
+                const currentValue = this.grid[row][col];
+                const cost = currentValue;
+                
+                if (this.energy < cost) {
+                    this.showMessage('能量不足！');
+                    return;
+                }
+                
+                this.energy -= cost;
+                this.grid[row][col] += 1;
+                
+                if (this.grid[row][col] > this.highestNumber) {
+                    this.highestNumber = this.grid[row][col];
+                }
+                
+                this.updateStats();
+                this.render();
+                
+                setTimeout(() => this.processMatches(), 100);
+            }
+
+            async processMatches() {
+                if (this.isProcessing) return;
+                this.isProcessing = true;
+                this.combo = 0;
+                
+                while (true) {
+                    const matches = this.findMatches();
+                    
+                    if (matches.length === 0) {
+                        break;
+                    }
+                    
+                    this.combo++;
+                    
+                    if (this.combo > 1) {
+                        this.showCombo(this.combo);
+                    }
+                    
+                    await this.eliminateMatches(matches);
+                    
+                    if (this.highestNumber >= 20 && !this.victory) {
+                        this.victory = true;
+                        this.showVictory();
+                    }
+                }
+                
+                this.isProcessing = false;
+                this.combo = 0;
+                
+                this.checkGameOver();
+            }
+
+            findMatches() {
+                const matches = [];
+                const visited = new Set();
+                
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const value = this.grid[row][col];
+                        if (value === 0) continue;
+                        
+                        const horizontalMatch = this.findHorizontalMatch(row, col, value);
+                        if (horizontalMatch.length >= 3) {
+                            const key = `h-${row}-${col}`;
+                            if (!visited.has(key)) {
+                                matches.push({ cells: horizontalMatch, value });
+                                horizontalMatch.forEach(([r, c]) => visited.add(`h-${r}-${c}`));
+                            }
+                        }
+                        
+                        const verticalMatch = this.findVerticalMatch(row, col, value);
+                        if (verticalMatch.length >= 3) {
+                            const key = `v-${row}-${col}`;
+                            if (!visited.has(key)) {
+                                matches.push({ cells: verticalMatch, value });
+                                verticalMatch.forEach(([r, c]) => visited.add(`v-${r}-${c}`));
+                            }
+                        }
+                    }
+                }
+                
+                return matches;
+            }
+
+            findHorizontalMatch(row, col, value) {
+                const match = [[row, col]];
+                
+                for (let c = col + 1; c < this.gridSize; c++) {
+                    if (this.grid[row][c] === value) {
+                        match.push([row, c]);
+                    } else {
+                        break;
+                    }
+                }
+                
+                return match;
+            }
+
+            findVerticalMatch(row, col, value) {
+                const match = [[row, col]];
+                
+                for (let r = row + 1; r < this.gridSize; r++) {
+                    if (this.grid[r][col] === value) {
+                        match.push([r, col]);
+                    } else {
+                        break;
+                    }
+                }
+                
+                return match;
+            }
+
+            async eliminateMatches(matches) {
+                const allCellsToEliminate = new Set();
+                const mergePositions = [];
+                
+                for (const match of matches) {
+                    const { cells, value } = match;
+                    
+                    cells.forEach(([r, c]) => allCellsToEliminate.add(`${r},${c}`));
+                    
+                    const centerIndex = Math.floor(cells.length / 2);
+                    const [mergeRow, mergeCol] = cells[centerIndex];
+                    mergePositions.push({ row: mergeRow, col: mergeCol, value: value + 1, count: cells.length });
+                    
+                    const points = value * cells.length * 10 * (this.combo || 1);
+                    this.score += points;
+                    this.showScorePopup(mergeRow, mergeCol, points);
+                    
+                    const energyGained = Math.floor(value * cells.length * 0.5);
+                    this.energy = Math.min(this.maxEnergy, this.energy + energyGained);
+                }
+                
+                for (const key of allCellsToEliminate) {
+                    const [r, c] = key.split(',').map(Number);
+                    this.animateEliminate(r, c);
+                }
+                
+                await this.sleep(400);
+                
+                for (const key of allCellsToEliminate) {
+                    const [r, c] = key.split(',').map(Number);
+                    this.grid[r][c] = 0;
+                }
+                
+                for (const { row, col, value, count } of mergePositions) {
+                    this.grid[row][col] = value;
+                    if (value > this.highestNumber) {
+                        this.highestNumber = value;
+                    }
+                    this.animateMerge(row, col);
+                }
+                
+                this.updateStats();
+                this.render();
+                
+                await this.sleep(300);
+            }
+
+            animateEliminate(row, col) {
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell && cell.querySelector('.tile')) {
+                    cell.querySelector('.tile').classList.add('eliminate');
+                }
+            }
+
+            animateMerge(row, col) {
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell && cell.querySelector('.tile')) {
+                    cell.querySelector('.tile').classList.add('merge');
+                }
+            }
+
+            showScorePopup(row, col, points) {
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    const popup = document.createElement('div');
+                    popup.className = 'score-popup';
+                    popup.textContent = `+${points}`;
+                    popup.style.left = '50%';
+                    popup.style.top = '50%';
+                    popup.style.transform = 'translate(-50%, -50%)';
+                    cell.appendChild(popup);
+                    
+                    setTimeout(() => popup.remove(), 1000);
+                }
+            }
+
+            showCombo(combo) {
+                const display = document.getElementById('combo-display');
+                display.textContent = `${combo}连击!`;
+                display.classList.remove('show');
+                void display.offsetWidth;
+                display.classList.add('show');
+            }
+
+            showMessage(text) {
+                const display = document.getElementById('combo-display');
+                display.textContent = text;
+                display.classList.remove('show');
+                void display.offsetWidth;
+                display.classList.add('show');
+            }
+
+            checkGameOver() {
+                if (this.victory) return;
+                
+                let hasValidMove = false;
+                
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const value = this.grid[row][col];
+                        if (value === 0) continue;
+                        
+                        if (this.energy >= value) {
+                            this.grid[row][col] += 1;
+                            const matches = this.findMatches();
+                            this.grid[row][col] -= 1;
+                            
+                            if (matches.length > 0) {
+                                hasValidMove = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hasValidMove) break;
+                }
+                
+                const existingMatches = this.findMatches();
+                if (existingMatches.length > 0) {
+                    hasValidMove = true;
+                }
+                
+                if (!hasValidMove && this.energy === 0) {
+                    this.gameOver = true;
+                    this.showGameOver();
+                }
+            }
+
+            showGameOver() {
+                document.getElementById('modal-title').textContent = '游戏结束';
+                document.getElementById('modal-message').textContent = '能量耗尽了！';
+                document.getElementById('final-score').textContent = this.score;
+                document.getElementById('final-highest').textContent = this.highestNumber;
+                document.getElementById('game-over-modal').classList.add('show');
+            }
+
+            showVictory() {
+                document.getElementById('modal-title').textContent = '🎉 恭喜通关！';
+                document.getElementById('modal-message').textContent = `你成功合成了数字 ${this.highestNumber}！`;
+                document.getElementById('final-score').textContent = this.score;
+                document.getElementById('final-highest').textContent = this.highestNumber;
+                document.getElementById('game-over-modal').classList.add('show');
+            }
+
+            showHelp() {
+                document.getElementById('help-modal').classList.add('show');
+            }
+
+            hideHelp() {
+                document.getElementById('help-modal').classList.remove('show');
+            }
+
+            restart() {
+                this.score = 0;
+                this.energy = 100;
+                this.highestNumber = 1;
+                this.combo = 0;
+                this.isProcessing = false;
+                this.gameOver = false;
+                this.victory = false;
+                
+                document.getElementById('game-over-modal').classList.remove('show');
+                
+                this.init();
+            }
+
+            updateStats() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('highest').textContent = this.highestNumber;
+                document.getElementById('current-goal').textContent = this.highestNumber;
+                
+                const energyPercent = (this.energy / this.maxEnergy) * 100;
+                const energyFill = document.getElementById('energy-fill');
+                energyFill.style.width = `${energyPercent}%`;
+                
+                if (energyPercent <= 20) {
+                    energyFill.classList.add('low');
+                } else {
+                    energyFill.classList.remove('low');
+                }
+                
+                document.getElementById('energy-text').textContent = `${this.energy}/${this.maxEnergy}`;
+            }
+
+            getTileColor(value) {
+                if (value <= 20) {
+                    return TILE_COLORS[value];
+                }
+                return { bg: `hsl(${(value * 17) % 360}, 70%, 50%)`, text: '#fff' };
+            }
+
+            getTileSize(value) {
+                if (value <= 10) return '0.9rem';
+                if (value <= 15) return '0.8rem';
+                return '0.7rem';
+            }
+
+            render() {
+                const gridElement = document.getElementById('grid');
+                gridElement.innerHTML = '';
+                
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const value = this.grid[row][col];
+                        const cell = document.createElement('div');
+                        cell.className = 'cell' + (value === 0 ? ' empty' : '');
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        
+                        if (value > 0) {
+                            const tile = document.createElement('div');
+                            const color = this.getTileColor(value);
+                            tile.className = 'tile';
+                            tile.style.background = color.bg;
+                            tile.style.color = color.text;
+                            tile.style.fontSize = this.getTileSize(value);
+                            tile.style.boxShadow = `0 0 15px ${color.bg}40`;
+                            tile.textContent = value;
+                            cell.appendChild(tile);
+                            
+                            cell.addEventListener('click', () => this.handleClick(row, col));
+                        }
+                        
+                        gridElement.appendChild(cell);
+                    }
+                }
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        const game = new Game();
+    </script>
+</body>
+</html>
